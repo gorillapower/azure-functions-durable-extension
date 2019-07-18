@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using DurableTask.Core;
+using Microsoft.Azure.WebJobs.Host.Bindings;
 using Newtonsoft.Json;
 
 namespace Microsoft.Azure.WebJobs.Extensions.DurableTask
@@ -18,6 +19,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask
         private readonly TaskEntityShim shim;
 
         private List<OutgoingMessage> outbox = new List<OutgoingMessage>();
+
+        private FunctionBindingContext bindingContext;
 
         public DurableEntityContext(DurableTaskExtension config, EntityId entity, TaskEntityShim shim)
             : base(config, entity.EntityName)
@@ -71,6 +74,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask
                 return this.IsNewlyConstructed;
             }
         }
+
+        public FunctionBindingContext FunctionBindingContext { get => this.bindingContext; set => this.bindingContext = value; }
 
         void IDurableEntityContext.DestructOnExit()
         {
