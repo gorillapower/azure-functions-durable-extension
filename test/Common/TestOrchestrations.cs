@@ -833,13 +833,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
             var entityProxy = ctx.CreateEntityProxy<TestEntityClasses.ICounter>(counter);
 
             // reset
-            entityProxy.Set(10);
+            await entityProxy.Set(10);
 
             // increment
-            entityProxy.Increment();
+            await entityProxy.Increment();
 
             // add
-            entityProxy.Add(5);
+            await entityProxy.Add(5);
 
             // get current value
             var result = await entityProxy.Get();
@@ -857,13 +857,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
             var entityProxy = ctx.CreateEntityProxy<TestEntityClasses.ICounter>(entityKey);
 
             // reset
-            entityProxy.Set(10);
+            await entityProxy.Set(10);
 
             // increment
-            entityProxy.Increment();
+            await entityProxy.Increment();
 
             // add
-            entityProxy.Add(5);
+            await entityProxy.Add(5);
 
             // get current value
             var result = await entityProxy.Get();

@@ -3,15 +3,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
 {
     public class TestEntityClasses
     {
         // this example shows how to use the C# class API for entities.
+        public const string BlobContainerPath = "durable-entities-binding-test";
 
         public interface IChatRoom
         {
@@ -22,13 +26,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
 
         public interface ICounter
         {
-            void Increment();
+            Task Increment();
 
-            void Add(int value);
+            Task Add(int value);
 
             Task<int> Get();
 
-            void Set(int newValue);
+            Task Set(int newValue);
 
             void Delete();
         }
@@ -43,6 +47,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
         public static Task CounterFunction([EntityTrigger] IDurableEntityContext context)
         {
             return context.DispatchAsync<CounterWithProxy>();
+        }
+
+        [FunctionName(nameof(StorageBackedCounter))]
+        public static Task StorageBackedCounterFunction([EntityTrigger] IDurableEntityContext context, [Blob(BlobContainerPath)] CloudBlobContainer blobContainer)
+        {
+            return context.DispatchAsync<StorageBackedCounter>(blobContainer);
         }
 
         //-------------- an entity representing a chat room -----------------
@@ -81,14 +91,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
             [JsonProperty("value")]
             public int Value { get; set; }
 
-            public void Increment()
+            public Task Increment()
             {
                 this.Value += 1;
+                return Task.CompletedTask;
             }
 
-            public void Add(int value)
+            public Task Add(int value)
             {
                 this.Value += value;
+                return Task.CompletedTask;
             }
 
             public Task<int> Get()
@@ -96,9 +108,74 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask.Tests
                 return Task.FromResult(this.Value);
             }
 
-            public void Set(int newValue)
+            public Task Set(int newValue)
             {
                 this.Value = newValue;
+                return Task.CompletedTask;
+            }
+
+            public void Delete()
+            {
+                Entity.Current.DestructOnExit();
+            }
+        }
+
+        //-------------- An entity representing a counter object -----------------
+
+        [JsonObject(MemberSerialization = MemberSerialization.OptIn)]
+        public class StorageBackedCounter : ICounter
+        {
+            private readonly CloudBlobContainer blobContainer;
+            private readonly string blobName = "counter";
+
+            public StorageBackedCounter(CloudBlobContainer blobContainer)
+            {
+                this.blobContainer = blobContainer;
+            }
+
+            [JsonProperty("value")]
+            public int Value { get; set; }
+
+            public async Task Increment()
+            {
+                await this.Add(1);
+            }
+
+            public async Task Add(int value)
+            {
+                int currValue = await this.Get();
+                await this.Set(currValue + value);
+            }
+
+            public async Task<int> Get()
+            {
+                CloudBlockBlob environmentVariableBlob = this.blobContainer.GetBlockBlobReference(this.blobName);
+                if (await environmentVariableBlob.ExistsAsync())
+                {
+                    var readStream = await environmentVariableBlob.OpenReadAsync();
+                    using (var reader = new StreamReader(readStream))
+                    {
+                        string storedValueString = await reader.ReadToEndAsync();
+                        int storedValue = JToken.Parse(storedValueString).ToObject<int>();
+                        if (this.Value != storedValue)
+                        {
+                            throw new InvalidOperationException("Local state and blob state do not match.");
+                        }
+
+                        return this.Value;
+                    }
+                }
+                else
+                {
+                    return this.Value;
+                }
+            }
+
+            public async Task Set(int newValue)
+            {
+                this.Value = newValue;
+                CloudBlockBlob environmentVariableBlob = this.blobContainer.GetBlockBlobReference(this.blobName);
+                await environmentVariableBlob.UploadTextAsync(newValue.ToString());
             }
 
             public void Delete()

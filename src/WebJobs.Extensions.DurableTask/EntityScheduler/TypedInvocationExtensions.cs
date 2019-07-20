@@ -31,9 +31,6 @@ namespace Microsoft.Azure.WebJobs
         /// an object array).
         /// </remarks>
         public static async Task DispatchAsync<T>(this IDurableEntityContext context, params object[] constructorParameters)
-#if !NETSTANDARD2_0
-            where T : new()
-#endif
         {
             // find the method corresponding to the operation
             // (may throw an AmbiguousMatchException)
@@ -70,9 +67,9 @@ namespace Microsoft.Azure.WebJobs
             }
 
 #if NETSTANDARD2_0
-            T state = (T)context.FunctionBindingContext.CreateObjectInstance(typeof(T), constructorParameters);
+            T state = context.GetState(() => (T)context.FunctionBindingContext.CreateObjectInstance(typeof(T), constructorParameters));
 #else
-            T state = context.GetState(() => new T());
+            T state = context.GetState(() => (T)Activator.CreateInstance(typeof(T)));
 #endif
 
             object result = method.Invoke(state, args);
