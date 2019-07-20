@@ -102,9 +102,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.DurableTask
             if (!this.StateWasAccessed)
             {
                 TState result = initializer != null ? initializer() : default(TState);
+
                 if (this.State.EntityState != null)
                 {
-                    JsonConvert.PopulateObject(this.State.EntityState, result);
+                    if (initializer != null)
+                    {
+                        JsonConvert.PopulateObject(this.State.EntityState, result);
+                    }
+                    else
+                    {
+                        return JsonConvert.DeserializeObject<TState>(this.State.EntityState);
+                    }
                 }
 
                 this.CurrentState = result;
