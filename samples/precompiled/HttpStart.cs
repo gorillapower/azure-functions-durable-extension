@@ -11,10 +11,16 @@ using Microsoft.Extensions.Logging;
 
 namespace VSSample
 {
-    public static class HttpStart
+    public class HttpStart
     {
+        HttpClient _httpClient;
+        public HttpStart(IHttpClientFactory fact)
+        {
+            _httpClient = fact.CreateClient();
+        }
+
         [FunctionName("HttpStart")]
-        public static async Task<HttpResponseMessage> Run(
+        public  async Task<HttpResponseMessage> Run(
             [HttpTrigger(AuthorizationLevel.Function, methods: "post", Route = "orchestrators/{functionName}")] HttpRequestMessage req,
             [OrchestrationClient] DurableOrchestrationClientBase starter,
             string functionName,
