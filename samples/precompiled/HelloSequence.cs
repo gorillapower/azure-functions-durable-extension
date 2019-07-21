@@ -2,15 +2,22 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 
 namespace VSSample
 {
-    public static class HelloSequence
+    public class HelloSequence
     {
+        HttpClient _httpClient;
+        public HelloSequence(IHttpClientFactory fact)
+        {
+            _httpClient = fact.CreateClient();
+        }
+
         [FunctionName("E1_HelloSequence")]
-        public static async Task<List<string>> Run(
+        public async Task<List<string>> Run(
             [OrchestrationTrigger] DurableOrchestrationContextBase context)
         {
             var outputs = new List<string>();
